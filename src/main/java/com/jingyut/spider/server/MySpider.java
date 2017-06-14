@@ -2,59 +2,47 @@ package com.jingyut.spider.server;
 
 import com.jingyut.spider.constant.StrConstant;
 import com.jingyut.spider.constant.StrValue;
+import com.jingyut.spider.pipline.ExcelPipline;
 import com.jingyut.spider.processer.KeyProcessor;
 import com.jingyut.spider.processer.PostProcessor;
-import us.codecraft.webmagic.Request;
-import us.codecraft.webmagic.ResultItems;
+import com.jingyut.spider.util.InputKeyUtil;
+import com.jingyut.spider.util.RequestUtil;
 import us.codecraft.webmagic.Spider;
-import us.codecraft.webmagic.Task;
-import us.codecraft.webmagic.model.HttpRequestBody;
-import us.codecraft.webmagic.pipeline.Pipeline;
-import us.codecraft.webmagic.utils.HttpConstant;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
  * Created by mmy on 2017/6/8.
  */
 public class MySpider {
-
     public static void main(String[] args) throws Exception{
-        //请求地址
-        Request strPostRequest = new Request(StrConstant.STR_KEY_POST_URL);
-        //请求类型 post
-        strPostRequest.setMethod(HttpConstant.Method.POST);
-
-        Map<String,Object> postMap = new HashMap<>();
-        postMap.put("input","A549");
-
-        //将参数设置到请求对象上
-        strPostRequest.setRequestBody(HttpRequestBody.form(postMap,"utf-8"));
-
-        PostProcessor postProcessor = new PostProcessor();
-        System.out.println("======================PostSpider start=====================");
-        Spider postSpider = Spider.create(postProcessor);
-        postSpider.addRequest(strPostRequest);
-        postSpider.run();
-        System.out.println("======================PostSpider stop=====================");
-
-
-
-        System.out.println("======================keySpider start=====================");
+        //从Excel中获取所有待查的Key
+        List<String> keys = InputKeyUtil.getKeysFromEecel("");
+        //创建第一次post请求用的爬虫
+        Spider postSpider = Spider.create(new PostProcessor());
+        //创建第二次get带结果key请求的爬虫
         Spider keySpider = Spider.create(new KeyProcessor());
-        //请求地址
-        Request strGetRequest = new Request(StrConstant.STR_KEY_GET_URL + StrValue.postResult);
-        keySpider.addRequest(strGetRequest);
-        keySpider.addPipeline(new Pipeline() {
-            @Override
-            public void process(ResultItems resultItems, Task task) {
-                Map<String, Object> map = resultItems.getAll();
-                System.out.println(map.keySet());
-                System.out.println(map.values());
-            }
-        });
-        keySpider.run();
-        System.out.println("======================keySpider start=====================");
+        for (String key: keys) {
+            System.out.println("key: [" + key + "] start!!!");
+
+            //封装post请求参数
+            Map<String,Object> postMap = new HashMap<>();
+            postMap.put(StrConstant.STR_FROM_1,key);
+
+            //执行第一次post请求
+            postSpider.addRequest(RequestUtil.getPostRequest(StrConstant.STR_KEY_POST_URL,postMap))
+                    .run();
+            postSpider.close();
+
+            //执行第二次get带结果key的请求
+            keySpider.addRequest(RequestUtil.getGetRequest(StrConstant.STR_KEY_GET_URL,StrValue.postResult))
+                    .addPipeline(new ExcelPipline())
+                    .run();
+            keySpider.close();
+
+            System.out.println("key: [" + key + "] start!!!");
+        }
     }
 }
