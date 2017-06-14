@@ -19,7 +19,7 @@ import java.util.Map;
 public class MySpider {
     public static void main(String[] args) throws Exception{
         //从Excel中获取所有待查的Key
-        List<String> keys = InputKeyUtil.getKeysFromEecel("");
+        List<String> keys = InputKeyUtil.getKeysFromEecel(args[0]);
         //创建第一次post请求用的爬虫
         Spider postSpider = Spider.create(new PostProcessor());
         //创建第二次get带结果key请求的爬虫
